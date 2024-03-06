@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "zephyr/boards/arm/thingy52_nrf52832",
+		"source" : "/home/jose/zephyrproject/zephyr/boards/arm/thingy52_nrf52832"
+	}
+}

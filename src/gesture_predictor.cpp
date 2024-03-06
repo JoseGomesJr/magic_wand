@@ -14,65 +14,151 @@
  * limitations under the License.
  */
 
-#include "gesture_predictor.hpp"
+#include "gesture_predictor.h"
+
+#include <tensorflow/lite/micro/micro_interpreter.h>
+#include <tensorflow/lite/micro/micro_mutable_op_resolver.h>
+#include <zephyr/logging/log.h>
 
 #include "constants.hpp"
+#include "magic_wand_model_data.hpp"
+#include "output_handler.h"
 
-namespace {
-	/* State for the averaging algorithm we're using. */
-	float prediction_history[kGestureCount][kPredictionHistoryLength] = {};
-	int prediction_history_index = 0;
-	int prediction_suppression_count = 0;
-} /* namespace */
 
-/* Return the result of the last prediction
- * 0: wing("W"), 1: ring("O"), 2: slope("angle"), 3: unknown
- */
-int PredictGesture(const float *output)
-{
-	/* Record the latest predictions in our rolling history buffer. */
-	for (int i = 0; i < kGestureCount; ++i) {
-		prediction_history[i][prediction_history_index] = output[i];
-	}
-	/* Figure out which slot to put the next predictions into. */
-	++prediction_history_index;
-	if (prediction_history_index >= kPredictionHistoryLength) {
-		prediction_history_index = 0;
-	}
+#define KTENSOR_ARENA_SIZE (18 * 1024)
 
-	/* Average the last n predictions for each gesture, and find which has the
-	 * highest score.
-	 */
-	int max_predict_index = -1;
-	float max_predict_score = 0.0f;
-	for (int i = 0; i < kGestureCount; i++) {
-		float prediction_sum = 0.0f;
-		for (int j = 0; j < kPredictionHistoryLength; ++j) {
-			prediction_sum += prediction_history[i][j];
-		}
-		const float prediction_average = prediction_sum / kPredictionHistoryLength;
-		if ((max_predict_index == -1) || (prediction_average > max_predict_score)) {
-			max_predict_index = i;
-			max_predict_score = prediction_average;
-		}
-	}
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-	/* If there's been a recent prediction, don't trigger a new one too soon. */
-	if (prediction_suppression_count > 0) {
-		--prediction_suppression_count;
-	}
-	/* If we're predicting no gesture, or the average score is too low, or there's
-	 * been a gesture recognised too recently, return no gesture.
-	 */
-	if ((max_predict_index == kNoGesture) ||
-	    (max_predict_score < kDetectionThreshold) ||
-	    (prediction_suppression_count > 0)) {
-		return kNoGesture;
-	} else {
-		/* Reset the suppression counter so we don't come up with another prediction
-		 * too soon.
-		 */
-		prediction_suppression_count = kPredictionSuppressionDuration;
-		return max_predict_index;
-	}
+static struct {
+    const tflite::Model *model;
+    tflite::MicroInterpreter *interpreter;
+    TfLiteTensor *model_input;
+    int input_length;
+    uint8_t tensor_arena[KTENSOR_ARENA_SIZE];
+
+    float prediction_history[kGestureCount][kPredictionHistoryLength];
+    int prediction_history_index;
+    int prediction_suppression_count;
+} self = {
+        .model = nullptr,
+        .interpreter = nullptr,
+        .model_input = nullptr,
+        .input_length = 0,
+
+        .prediction_history = {{0}},
+        .prediction_history_index = 0,
+        .prediction_suppression_count = 0,
+};
+
+extern const k_tid_t predict_thread_id;
+
+int PredictGesture(const float *output) {
+
+    for (int i = 0; i < kGestureCount; ++i) {
+        self.prediction_history[i][self.prediction_history_index] = output[i];
+    }
+
+    ++self.prediction_history_index;
+    if (self.prediction_history_index >= kPredictionHistoryLength) {
+        self.prediction_history_index = 0;
+    }
+
+    int max_predict_index = -1;
+    float max_predict_score = 0.0f;
+    for (int i = 0; i < kGestureCount; i++) {
+        float prediction_sum = 0.0f;
+        for (int j = 0; j < kPredictionHistoryLength; ++j) {
+            prediction_sum += self.prediction_history[i][j];
+        }
+        const float prediction_average = prediction_sum / kPredictionHistoryLength;
+        if ((max_predict_index == -1) || (prediction_average > max_predict_score)) {
+            max_predict_index = i;
+            max_predict_score = prediction_average;
+        }
+    }
+
+
+    if (self.prediction_suppression_count > 0) {
+        --self.prediction_suppression_count;
+    }
+
+    if ((max_predict_index == kNoGesture) ||
+        (max_predict_score < kDetectionThreshold) ||
+        (self.prediction_suppression_count > 0)) {
+        return kNoGesture;
+    } else {
+
+        self.prediction_suppression_count = kPredictionSuppressionDuration;
+        return max_predict_index;
+    }
 }
+
+int predictor_init(void) {
+
+    self.model = tflite::GetModel(g_magic_wand_model_data);
+    if (self.model->version() != TFLITE_SCHEMA_VERSION) {
+        printk("Model provided is schema version %d not equal "
+               "to supported version %d.",
+               self.model->version(), TFLITE_SCHEMA_VERSION);
+        return -1;
+    }
+
+    static tflite::MicroMutableOpResolver<5> micro_op_resolver = tflite::MicroMutableOpResolver<5>();
+    micro_op_resolver.AddConv2D();
+    micro_op_resolver.AddMaxPool2D();
+    micro_op_resolver.AddReshape();
+    micro_op_resolver.AddFullyConnected();
+    micro_op_resolver.AddSoftmax();
+
+    static tflite::MicroInterpreter static_interpreter = tflite::MicroInterpreter(
+            self.model, micro_op_resolver, self.tensor_arena, KTENSOR_ARENA_SIZE);
+    self.interpreter = &static_interpreter;
+
+    TfLiteStatus status = self.interpreter->AllocateTensors();
+
+    self.model_input = self.interpreter->input(0);
+    if (status != kTfLiteOk) {
+        printk("Bad input tensor parameters in model");
+        return -1;
+    }
+
+    self.input_length = self.model_input->bytes / (3 * sizeof(float));
+
+    int setup_status = accelerometer_config();
+    if (setup_status) {
+        printk("Set up failed Acceleremeter\n");
+        return -1;
+    }
+    return 0;
+}
+
+void predict_thread(void) {
+    k_sleep(K_MSEC(1000));
+    while (true) {
+        bool got_data =
+                accelerometer_read(self.model_input->data.f, self.input_length);
+
+        if (!got_data) {
+            return;
+        }
+
+        TfLiteStatus invoke_status = self.interpreter->Invoke();
+        if (invoke_status != kTfLiteOk) {
+            printk("Invoke failed on index\n");
+            return;
+        }
+        int gesture_index = PredictGesture(self.interpreter->output(0)->data.f);
+
+        classificatiopn_predict(gesture_index);
+        //k_sleep(K_MSEC(10));
+    }
+}
+
+K_THREAD_DEFINE(predict_thread_id, 2048,
+                predict_thread, NULL, NULL, NULL, 5, 0, 1000);
+
+#ifdef __cplusplus
+};
+#endif

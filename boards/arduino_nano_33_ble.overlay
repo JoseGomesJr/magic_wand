@@ -1,0 +1,5 @@
+/ {
+    aliases {
+        accel0 = &lis2dh12;
+    };
+};

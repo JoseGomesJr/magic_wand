@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "zephyr/subsys/bluetooth/crypto",
+		"source" : "/home/jose/zephyrproject/zephyr/subsys/bluetooth/crypto"
+	}
+}
