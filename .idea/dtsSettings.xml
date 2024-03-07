@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="com.intellij.dts.settings.DtsSettings">
-    <option name="zephyrBoard" value="$USER_HOME$/zephyrproject/zephyr/boards/arm/thingy52_nrf52832" />
+    <option name="zephyrBoard" value="$USER_HOME$/zephyrproject/zephyr/boards/nordic/thingy52" />
     <option name="zephyrRoot" value="$USER_HOME$/zephyrproject/zephyr" />
   </component>
 </project>

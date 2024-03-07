@@ -26,4 +26,6 @@ typedef struct
 
 
 int bluetooth_ready(void);
+
+int bluetooth_send_notify(uint8_t* data, uint16_t len);
 #endif //TENSORFLOW_MAGIC_WAND_BLUETOOTH_H

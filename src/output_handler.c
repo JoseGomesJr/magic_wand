@@ -15,24 +15,16 @@
  */
 
 #include "output_handler.h"
-#include <zephyr/kernel.h>
+#include "bluetooth.h"
 
-void classificatiopn_predict(int kind)
+void classificatiopn_predict(uint8_t kind)
 {
 	/* light (red: wing, blue: ring, green: slope) */
 	if (kind == 0) {
-		printk(
-			"WING:\n\r*         *         *\n\r *       * *       "
-			"*\n\r  *     *   *     *\n\r   *   *     *   *\n\r    * *       "
-			"* *\n\r     *         *\n\r");
+        bluetooth_send_notify(&kind, sizeof(kind));
 	} else if (kind == 1) {
-        printk(
-			"RING:\n\r          *\n\r       *     *\n\r     *         *\n\r "
-			"   *           *\n\r     *         *\n\r       *     *\n\r      "
-			"    *\n\r");
+        bluetooth_send_notify(&kind, sizeof(kind));
 	} else if (kind == 2) {
-        printk(
-			"SLOPE:\n\r        *\n\r       *\n\r      *\n\r     *\n\r    "
-			"*\n\r   *\n\r  *\n\r * * * * * * * *\n\r");
+        bluetooth_send_notify(&kind, sizeof(kind));
 	}
 }

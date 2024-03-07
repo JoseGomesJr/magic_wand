@@ -143,20 +143,28 @@ int bluetooth_ready(void)
     return 0;
 }
 
+int bluetooth_send_notify(uint8_t* data, uint16_t len){
+
+    int err = 0;
+    data_t data_copy = {0};
+
+    if(data == NULL){
+        return -1;
+    }
+    memcpy(data_copy.data, data, len);
+    data_copy.len = len;
+
+    err = k_msgq_put(&self.periheral_menssage_ble, &data_copy, K_NO_WAIT);
+
+    return err;
+}
+
 void bluetooth_task(void){
     int err;
     data_t data = {0};
 
     while (true){
         k_msgq_get(&self.periheral_menssage_ble, &data, K_FOREVER);
-        for (int i = 0; i < data.len; i++) {
-            if ((data.data[i] >= 'a') && ((data.data[i] <= 'z'))) {
-                data.data[i] = 'A' + (data.data[i] - 'a');
-            }
-        }
-
-        printk("Enviando Dado...\n");
-        printk("%s.\n",data.data);
 
         err = bt_gatt_notify(NULL, &peripheral_service.attrs[3], data.data, data.len);
         if (err) {
@@ -164,3 +172,6 @@ void bluetooth_task(void){
         }
     }
 }
+
+K_THREAD_DEFINE(bluetooth_task_id, 512,
+                bluetooth_task, NULL, NULL, NULL, 5, 0, 1000);

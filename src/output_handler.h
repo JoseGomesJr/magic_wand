@@ -17,6 +17,8 @@
 #ifndef TENSORFLOW_LITE_MICRO_EXAMPLES_MAGIC_WAND_OUTPUT_HANDLER_H_
 #define TENSORFLOW_LITE_MICRO_EXAMPLES_MAGIC_WAND_OUTPUT_HANDLER_H_
 
-void classificatiopn_predict(int kind);
+#include <zephyr/kernel.h>
+
+void classificatiopn_predict(uint8_t kind);
 
 #endif /* TENSORFLOW_LITE_MICRO_EXAMPLES_MAGIC_WAND_OUTPUT_HANDLER_H_ */

@@ -65,10 +65,10 @@ bool accelerometer_read(float *input, int length)
         bufx[begin_index] = (float)sensor_value_to_double(&accel[0]);
         bufy[begin_index] = (float)sensor_value_to_double(&accel[1]);
         bufz[begin_index] = (float)sensor_value_to_double(&accel[2]);
-
-        bufx[begin_index] = filtroPassaAlta(bufx[begin_index], 0);
-        bufy[begin_index] = filtroPassaAlta(bufy[begin_index], 1);
-        bufz[begin_index]= filtroPassaAlta(bufy[begin_index], 2);
+//
+//        bufx[begin_index] = filtroPassaAlta(bufx[begin_index], 0);
+//        bufy[begin_index] = filtroPassaAlta(bufy[begin_index], 1);
+//        bufz[begin_index]= filtroPassaAlta(bufy[begin_index], 2);
 
         begin_index++;
         if (begin_index >= BUFLEN) {
