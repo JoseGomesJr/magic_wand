@@ -20,11 +20,11 @@
 void classificatiopn_predict(uint8_t kind)
 {
 	/* light (red: wing, blue: ring, green: slope) */
-	if (kind == 0) {
-        bluetooth_send_notify(&kind, sizeof(kind));
-	} else if (kind == 1) {
-        bluetooth_send_notify(&kind, sizeof(kind));
-	} else if (kind == 2) {
-        bluetooth_send_notify(&kind, sizeof(kind));
+	if (kind == 'Z') {
+
+	} else if (kind == 'V') {
+        printk("V\n");
+	} else if (kind == 'O') {
+        printk("O\n");
 	}
 }

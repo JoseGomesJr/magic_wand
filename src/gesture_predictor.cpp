@@ -105,10 +105,11 @@ int predictor_init(void) {
         return -1;
     }
 
-    static tflite::MicroMutableOpResolver<5> micro_op_resolver = tflite::MicroMutableOpResolver<5>();
+    static tflite::MicroMutableOpResolver<6> micro_op_resolver = tflite::MicroMutableOpResolver<6>();
     micro_op_resolver.AddConv2D();
-    micro_op_resolver.AddMaxPool2D();
     micro_op_resolver.AddReshape();
+    micro_op_resolver.AddMaxPool2D();
+    micro_op_resolver.AddExpandDims();
     micro_op_resolver.AddFullyConnected();
     micro_op_resolver.AddSoftmax();
 
@@ -149,7 +150,7 @@ void predict_thread(void) {
             printk("Invoke failed on index\n");
             return;
         }
-        int gesture_index = PredictGesture(self.interpreter->output(0)->data.f);
+        int gesture_index = PredictGesture(self.interpreter->output(0)->L.f);
 
         classificatiopn_predict(gesture_index);
         //k_sleep(K_MSEC(10));
