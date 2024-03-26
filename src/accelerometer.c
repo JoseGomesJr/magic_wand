@@ -66,6 +66,11 @@ bool accelerometer_read(float *input, int length)
     acc_y = sensor_value_to_double(&accel[1]);
     acc_z = sensor_value_to_double(&accel[2]);
 
+    acc_x = (double) filtroPassaAlta((float )acc_x, 0);
+    acc_y = (double) filtroPassaAlta((float )acc_y, 1);
+    acc_z = (double) filtroPassaAlta((float )acc_z, 2);
+
+
     input[0] = (float ) acc_x;
     input[1] = (float ) acc_y;
     input[2] = (float ) acc_z;

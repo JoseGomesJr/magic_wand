@@ -36,6 +36,9 @@ static struct {
     tflite::MicroInterpreter *interpreter;
     TfLiteTensor *model_input;
     int input_length;
+    size_t n_classes;
+    TfLiteTensor* output_tensor;
+
     uint8_t tensor_arena[KTENSOR_ARENA_SIZE];
 
     float prediction_history[kGestureCount][kPredictionHistoryLength];
@@ -56,43 +59,27 @@ extern const k_tid_t predict_thread_id;
 
 int PredictGesture(const float *output) {
 
-    for (int i = 0; i < kGestureCount; ++i) {
-        self.prediction_history[i][self.prediction_history_index] = output[i];
-    }
+    TfLiteStatus status;
+    uint8_t argmax = -1;
+    float max = 0.0f;
 
-    ++self.prediction_history_index;
-    if (self.prediction_history_index >= kPredictionHistoryLength) {
-        self.prediction_history_index = 0;
-    }
+    argmax = 0;
+    max = output[argmax];
 
-    int max_predict_index = -1;
-    float max_predict_score = 0.0f;
-    for (int i = 0; i < kGestureCount; i++) {
-        float prediction_sum = 0.0f;
-        for (int j = 0; j < kPredictionHistoryLength; ++j) {
-            prediction_sum += self.prediction_history[i][j];
-        }
-        const float prediction_average = prediction_sum / kPredictionHistoryLength;
-        if ((max_predict_index == -1) || (prediction_average > max_predict_score)) {
-            max_predict_index = i;
-            max_predict_score = prediction_average;
+    float z, o, v;
+
+    v = output[0];
+    o = output[1];
+    z = output[2];
+    for (uint8_t i = 0; i < self.n_classes; i++) {
+        if (output[i] > max) {
+            max = output[i];
+            argmax = i;
         }
     }
 
-
-    if (self.prediction_suppression_count > 0) {
-        --self.prediction_suppression_count;
-    }
-
-    if ((max_predict_index == kNoGesture) ||
-        (max_predict_score < kDetectionThreshold) ||
-        (self.prediction_suppression_count > 0)) {
-        return kNoGesture;
-    } else {
-
-        self.prediction_suppression_count = kPredictionSuppressionDuration;
-        return max_predict_index;
-    }
+    printk("V: %f, 0:%f, Z:%f/n", v, o, z);
+    return argmax;
 }
 
 int predictor_init(void) {
@@ -105,11 +92,8 @@ int predictor_init(void) {
         return -1;
     }
 
-    static tflite::MicroMutableOpResolver<6> micro_op_resolver = tflite::MicroMutableOpResolver<6>();
-    micro_op_resolver.AddConv2D();
+    static tflite::MicroMutableOpResolver<3> micro_op_resolver = tflite::MicroMutableOpResolver<3>();
     micro_op_resolver.AddReshape();
-    micro_op_resolver.AddMaxPool2D();
-    micro_op_resolver.AddExpandDims();
     micro_op_resolver.AddFullyConnected();
     micro_op_resolver.AddSoftmax();
 
@@ -120,12 +104,14 @@ int predictor_init(void) {
     TfLiteStatus status = self.interpreter->AllocateTensors();
 
     self.model_input = self.interpreter->input(0);
+    self.output_tensor = self.interpreter->output_tensor(0);
     if (status != kTfLiteOk) {
         printk("Bad input tensor parameters in model");
         return -1;
     }
 
     self.input_length = self.model_input->bytes / (3 * sizeof(float));
+    self.n_classes = self.output_tensor->bytes / sizeof(float);
 
     int setup_status = accelerometer_config();
     if (setup_status) {

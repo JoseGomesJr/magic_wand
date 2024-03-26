@@ -20,11 +20,11 @@
 void classificatiopn_predict(uint8_t kind)
 {
 	if (kind == 0) {
-        bluetooth_send_notify(&kind, sizeof(kind));
+        printk("Z\n");
 	} else if (kind == 1) {
-        bluetooth_send_notify(&kind, sizeof(kind));
+        printk("O\n");
 	} else if (kind == 2) {
-        bluetooth_send_notify(&kind, sizeof(kind));
+        printk("V\n");
 	}
 
     printk("Comando enviado!!\n");
