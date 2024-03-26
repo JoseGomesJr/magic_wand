@@ -32,7 +32,7 @@ int main(void)
         printk("Erro na inicialização do sistema\n");
     }
 
-//    err = bluetooth_ready();
+    err = bluetooth_ready();
     if(err){
         printk("Erro na inicialização do sistema\n");
     }

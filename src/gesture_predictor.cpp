@@ -25,7 +25,7 @@
 #include "output_handler.h"
 
 
-#define KTENSOR_ARENA_SIZE (18 * 1024)
+#define KTENSOR_ARENA_SIZE (10 * 1024)
 
 #ifdef __cplusplus
 extern "C" {
