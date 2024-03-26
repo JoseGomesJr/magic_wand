@@ -136,13 +136,18 @@ int predictor_init(void) {
 }
 
 void predict_thread(void) {
+    uint16_t count_sample = 0;
     k_sleep(K_MSEC(1000));
     while (true) {
         bool got_data =
-                accelerometer_read(self.model_input->data.f, self.input_length);
-
+                accelerometer_read(self.model_input->data.f + 3 * count_sample, self.input_length);
         if (!got_data) {
             return;
+        }
+        count_sample ++;
+        if(count_sample < self.input_length){
+            k_sleep(K_MSEC(10));
+            continue;
         }
 
         TfLiteStatus invoke_status = self.interpreter->Invoke();
@@ -150,10 +155,15 @@ void predict_thread(void) {
             printk("Invoke failed on index\n");
             return;
         }
-        int gesture_index = PredictGesture(self.interpreter->output(0)->L.f);
+        int gesture_index = PredictGesture(self.interpreter->output(0)->data.f);
 
         classificatiopn_predict(gesture_index);
-        //k_sleep(K_MSEC(10));
+
+        count_sample = 0;
+        for (int i = 0; i < 3 * self.input_length; i++) {
+            self.model_input->data.f[i] = 0.0f;
+        }
+        k_sleep(K_MSEC(10));
     }
 }
 

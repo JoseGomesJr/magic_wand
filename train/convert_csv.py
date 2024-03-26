@@ -32,7 +32,7 @@ with open(csv_file_name, "w", newline="") as csvfile:
                     segment_data = sensor_data[segment.start:segment.end + 1].drop(columns=['sequence'])
                     for w in segment_data.values:
                         print(w)
-                        writer.writerow([w[0], w[1], w[2], 'O'])
+                        writer.writerow([w[0], w[1], w[2], 0])
 
                     segments.append(segment_data.values.ravel())
                     labels.append(one_hot_encoding[segment.value])

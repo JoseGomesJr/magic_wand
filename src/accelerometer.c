@@ -43,6 +43,7 @@ bool accelerometer_read(float *input, int length)
 {
     int rc;
     struct sensor_value accel[3];
+    double acc_x, acc_y, acc_z;
     int samples_count;
 
     rc = sensor_sample_fetch(sensor);
@@ -55,46 +56,19 @@ bool accelerometer_read(float *input, int length)
         return false;
     }
 
-    samples_count = 100;
-    for (int i = 0; i < samples_count; i++) {
-        rc = sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, accel);
-        if (rc < 0) {
-            printk("ERROR: Update failed: %d\n", rc);
-            return false;
-        }
-        bufx[begin_index] = (float)sensor_value_to_double(&accel[0]);
-        bufy[begin_index] = (float)sensor_value_to_double(&accel[1]);
-        bufz[begin_index] = (float)sensor_value_to_double(&accel[2]);
-//
-//        bufx[begin_index] = filtroPassaAlta(bufx[begin_index], 0);
-//        bufy[begin_index] = filtroPassaAlta(bufy[begin_index], 1);
-//        bufz[begin_index]= filtroPassaAlta(bufy[begin_index], 2);
-
-        begin_index++;
-        if (begin_index >= BUFLEN) {
-            begin_index = 0;
-        }
-    }
-
-    if (initial && begin_index >= 100) {
-        initial = false;
-    }
-
-    if (initial) {
+    rc = sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, accel);
+    if (rc < 0) {
+        printk("ERROR: Update failed: %d\n", rc);
         return false;
     }
 
-    int sample = 0;
-    for (int i = 0; i < (length - 3); i += 3) {
-        int ring_index = begin_index + sample - length / 3;
-        if (ring_index < 0) {
-            ring_index += BUFLEN;
-        }
-        input[i] = bufx[ring_index];
-        input[i + 1] = bufy[ring_index];
-        input[i + 2] = bufz[ring_index];
-        sample++;
-    }
+    acc_x = sensor_value_to_double(&accel[0]);
+    acc_y = sensor_value_to_double(&accel[1]);
+    acc_z = sensor_value_to_double(&accel[2]);
+
+    input[0] = (float ) acc_x;
+    input[1] = (float ) acc_y;
+    input[2] = (float ) acc_z;
 
     return true;
 }
