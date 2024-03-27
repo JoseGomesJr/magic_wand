@@ -1,5 +1,6 @@
 / {
     aliases {
         accel0 = &lis2dh12;
+        sw0 = &button0;
     };
 };

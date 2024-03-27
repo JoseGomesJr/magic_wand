@@ -66,7 +66,7 @@ BT_GATT_SERVICE_DEFINE(
         peripheral_service, BT_GATT_PRIMARY_SERVICE(SERVICE_UUID),
         BT_GATT_CHARACTERISTIC(WHITE_CARAC, BT_GATT_CHRC_WRITE, BT_GATT_PERM_WRITE, NULL,
                                write_channels, NULL),
-        BT_GATT_CHARACTERISTIC(NOTIFY_CARAC, BT_GATT_CHRC_NOTIFY,
+        BT_GATT_CHARACTERISTIC(NOTIFY_CARAC, BT_GATT_CHRC_READ |BT_GATT_CHRC_NOTIFY,
                                BT_GATT_PERM_NONE, NULL, NULL, NULL),
         BT_GATT_CCC(ble_peripheral_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),);
 
@@ -162,7 +162,7 @@ int bluetooth_send_notify(uint8_t* data, uint16_t len){
 void bluetooth_task(void){
     int err;
     data_t data = {0};
-
+    k_sleep(K_MSEC(5000));
     while (true){
         k_msgq_get(&self.periheral_menssage_ble, &data, K_FOREVER);
 
@@ -173,5 +173,5 @@ void bluetooth_task(void){
     }
 }
 
-K_THREAD_DEFINE(bluetooth_task_id, 512,
+K_THREAD_DEFINE(bluetooth_task_id, 1024,
                 bluetooth_task, NULL, NULL, NULL, 5, 0, 1000);

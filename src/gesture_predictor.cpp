@@ -19,11 +19,21 @@
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/micro/micro_mutable_op_resolver.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 
 #include "constants.hpp"
 #include "magic_wand_model_data.hpp"
 #include "output_handler.h"
 
+
+#define SW0_NODE	DT_ALIAS(sw0)
+#if !DT_NODE_HAS_STATUS(SW0_NODE, okay)
+#error "Unsupported board: sw0 devicetree alias is not defined"
+#endif
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios,
+                                                              {0});
+static struct gpio_callback button_cb_data;
 
 #define KTENSOR_ARENA_SIZE (10 * 1024)
 
@@ -68,8 +78,8 @@ int PredictGesture(const float *output) {
 
     float z, o, v;
 
-    v = output[0];
-    o = output[1];
+    o= output[0];
+    v = output[1];
     z = output[2];
     for (uint8_t i = 0; i < self.n_classes; i++) {
         if (output[i] > max) {
@@ -82,8 +92,47 @@ int PredictGesture(const float *output) {
     return argmax;
 }
 
+void button_pressed(const struct device *dev, struct gpio_callback *cb,
+                    uint32_t pins)
+{
+    printk("Button pressed at %" PRIu32 "\n", k_cycle_get_32());
+}
+
+int init_button(){
+    int ret = 0;
+    if (!gpio_is_ready_dt(&button)) {
+        printk("Error: button device %s is not ready\n",
+               button.port->name);
+        return -1;
+    }
+
+    ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+    if (ret != 0) {
+        printk("Error %d: failed to configure %s pin %d\n",
+               ret, button.port->name, button.pin);
+        return -1;
+    }
+
+    ret = gpio_pin_interrupt_configure_dt(&button,
+                                          GPIO_INT_EDGE_TO_ACTIVE);
+    if (ret != 0) {
+        printk("Error %d: failed to configure interrupt on %s pin %d\n",
+               ret, button.port->name, button.pin);
+        return -1;
+    }
+
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
+    gpio_add_callback(button.port, &button_cb_data);
+    printk("Set up button at %s pin %d\n", button.port->name, button.pin);
+
+    return ret;
+}
+
 int predictor_init(void) {
 
+    if(init_button()){
+        printk("Button não encontrado\n");
+    }
     self.model = tflite::GetModel(g_magic_wand_model_data);
     if (self.model->version() != TFLITE_SCHEMA_VERSION) {
         printk("Model provided is schema version %d not equal "
@@ -123,8 +172,19 @@ int predictor_init(void) {
 
 void predict_thread(void) {
     uint16_t count_sample = 0;
-    k_sleep(K_MSEC(1000));
+    k_sleep(K_MSEC(5000));
     while (true) {
+        int val = gpio_pin_get_dt(&button);
+
+        if (!val) {
+            count_sample = 0;
+            for (int i = 0; i < 3 * self.input_length; i++) {
+                self.model_input->data.f[i] = 0.0f;
+            }
+            k_sleep(K_MSEC(10));
+            continue;
+        }
+
         bool got_data =
                 accelerometer_read(self.model_input->data.f + 3 * count_sample, self.input_length);
         if (!got_data) {

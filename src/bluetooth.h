@@ -20,7 +20,7 @@
 
 typedef struct
 {
-    uint8_t data[185];
+    uint8_t data[64];
     uint16_t len;
 } data_t;
 
